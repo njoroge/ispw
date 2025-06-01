@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User'); // Adjust path if User model is elsewhere
+const Package = require('../models/Package'); // Adjust path if necessary
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
@@ -20,6 +21,55 @@ router.get('/', [authMiddleware, adminMiddleware], async (req, res) => {
   } catch (error) {
     console.error('Error fetching users:', error.message);
     res.status(500).json({ message: 'Server error while fetching users' });
+  }
+});
+
+// PUT /api/admin/users/:userId/assign-package - Assign or remove a package for a user
+// @desc   Assign/Remove package for a user (admin only)
+// @access Private/Admin
+router.put('/:userId/assign-package', [authMiddleware, adminMiddleware], async (req, res) => {
+  const { userId } = req.params;
+  const { packageId } = req.body; // packageId can be null/empty to remove
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (packageId) {
+      // Assigning or changing a package
+      const packageToAssign = await Package.findById(packageId);
+      if (!packageToAssign) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      user.currentPackage = packageToAssign._id;
+      user.subscriptionDate = new Date();
+      // Potentially reset usage data if business logic requires
+      // user.simulatedDataUsed = 0;
+      // user.billingCycleStartDate = new Date();
+    } else {
+      // Removing a package
+      user.currentPackage = null;
+      user.subscriptionDate = null;
+      // user.simulatedDataUsed = 0; // Reset usage if needed
+    }
+
+    await user.save();
+
+    // Populate currentPackage before sending back for frontend convenience
+    const updatedUser = await User.findById(userId)
+      .select('-password')
+      .populate('currentPackage');
+
+    res.json({ message: 'Package assignment updated successfully', user: updatedUser });
+
+  } catch (error) {
+    console.error('Error assigning package to user:', error.message);
+    if (error.kind === 'ObjectId') { // Handle invalid ObjectId format for userId or packageId
+        return res.status(400).json({ message: 'Invalid ID format for user or package.' });
+    }
+    res.status(500).json({ message: 'Server error while assigning package' });
   }
 });
 

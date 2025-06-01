@@ -32,7 +32,9 @@ function App() {
       <nav style={{ padding: '1rem', background: '#f0f0f0', marginBottom: '1rem' }}>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', gap: '1rem' }}>
           <li><Link to="/">Home/Dashboard</Link></li>
-          <li><Link to="/packages">Packages</Link></li>
+          {!isAdmin && (
+            <li><Link to="/packages">Packages</Link></li>
+          )}
           {isAuthenticated ? (
             <>
               {isAdmin && (
