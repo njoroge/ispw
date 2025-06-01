@@ -7,7 +7,7 @@ const AdminCreateUserPage = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: '',
+    // password field is removed
     role: 'user', // Default role
   });
   const [error, setError] = useState(null);
@@ -22,8 +22,8 @@ const AdminCreateUserPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.username || !formData.email || !formData.password) {
-      setError('Username, email, and password are required.');
+    if (!formData.username || !formData.email) {
+      setError('Username and email are required.');
       return;
     }
     // Basic email validation
@@ -31,12 +31,7 @@ const AdminCreateUserPage = () => {
          setError('Please enter a valid email address.');
          return;
     }
-    // Basic password length (example)
-    if (formData.password.length < 6) {
-         setError('Password must be at least 6 characters long.');
-         return;
-    }
-
+    // Password validation removed
 
     setIsSubmitting(true);
     setError(null);
@@ -52,7 +47,7 @@ const AdminCreateUserPage = () => {
       );
 
       setSuccessMessage(response.data.message || 'User created successfully! Redirecting to user list...');
-      setFormData({ username: '', email: '', password: '', role: 'user' }); // Reset form
+      setFormData({ username: '', email: '', role: 'user' }); // Reset form
 
       // Redirect to user list page after a short delay
       setTimeout(() => {
@@ -81,10 +76,7 @@ const AdminCreateUserPage = () => {
           <label htmlFor="email" style={{ marginRight: '5px' }}>Email:</label>
           <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
         </div>
-        <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="password" style={{ marginRight: '5px' }}>Password:</label>
-          <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} required />
-        </div>
+        {/* Password field div removed */}
         <div style={{ marginBottom: '10px' }}>
           <label htmlFor="role" style={{ marginRight: '5px' }}>Role:</label>
           <select id="role" name="role" value={formData.role} onChange={handleChange}>

@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User'); // Adjust path if User model is elsewhere
 const Package = require('../models/Package'); // Adjust path if necessary
 const sendEmail = require('../utils/sendEmail'); // Import the mock email utility
+const generatePassword = require('../utils/passwordGenerator');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
@@ -29,15 +30,13 @@ router.get('/', [authMiddleware, adminMiddleware], async (req, res) => {
 // @desc   Create a new user (admin only)
 // @access Private/Admin
 router.post('/create', [authMiddleware, adminMiddleware], async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { username, email, role } = req.body;
 
   // Basic validation
-  if (!username || !email || !password || !role) {
-    return res.status(400).json({ message: 'Please provide username, email, password, and role' });
+  if (!username || !email || !role) {
+    return res.status(400).json({ message: 'Please provide username, email, and role' });
   }
-  if (password.length < 6) {
-     return res.status(400).json({ message: 'Password must be at least 6 characters long' });
-  }
+  // Password length validation removed
   if (!['user', 'admin'].includes(role)) {
      return res.status(400).json({ message: 'Invalid role specified' });
   }
@@ -54,10 +53,11 @@ router.post('/create', [authMiddleware, adminMiddleware], async (req, res) => {
     }
 
     // Create new user
+    const newPassword = generatePassword(); // Generate the password
     const newUser = new User({
       username,
       email,
-      password, // Password will be hashed by the pre-save hook in User model
+      password: newPassword, // Password will be hashed by the pre-save hook in User model
       role,
     });
 
@@ -70,7 +70,7 @@ router.post('/create', [authMiddleware, adminMiddleware], async (req, res) => {
 An administrator has created an account for you.
 
 Username: ${username}
-Password: ${password} // This is the plain password provided by admin
+Password: ${newPassword} // This is the system-generated password
 
 Please log in and consider changing your password.
 
