@@ -97,6 +97,21 @@ const AdminUserListPage = () => {
   return (
     <div>
       <h2>User Management</h2>
+      <Link
+        to="/admin/users/new"
+        style={{
+          display: 'inline-block',
+          marginBottom: '20px', // Increased margin for better spacing
+          padding: '10px 15px', // Slightly larger padding
+          backgroundColor: '#28a745',
+          color: 'white',
+          textDecoration: 'none',
+          borderRadius: '5px', // Slightly more rounded corners
+          fontSize: '1rem' // Ensure font size is adequate
+        }}
+      >
+        Add New User
+      </Link>
       
       {!loading && !error && users.length === 0 && (
         <p>No users found.</p>

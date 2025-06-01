@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User'); // Adjust path if User model is elsewhere
+const Package = require('../models/Package'); // Adjust path if necessary
+const sendEmail = require('../utils/sendEmail'); // Import the mock email utility
+const generatePassword = require('../utils/passwordGenerator');
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
@@ -20,6 +23,129 @@ router.get('/', [authMiddleware, adminMiddleware], async (req, res) => {
   } catch (error) {
     console.error('Error fetching users:', error.message);
     res.status(500).json({ message: 'Server error while fetching users' });
+  }
+});
+
+// POST /api/admin/users/create - Create a new user
+// @desc   Create a new user (admin only)
+// @access Private/Admin
+router.post('/create', [authMiddleware, adminMiddleware], async (req, res) => {
+  const { username, email, role } = req.body;
+
+  // Basic validation
+  if (!username || !email || !role) {
+    return res.status(400).json({ message: 'Please provide username, email, and role' });
+  }
+  // Password length validation removed
+  if (!['user', 'admin'].includes(role)) {
+     return res.status(400).json({ message: 'Invalid role specified' });
+  }
+
+  try {
+    // Check for existing user by email or username
+    let existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+    existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this username already exists' });
+    }
+
+    // Create new user
+    const newPassword = generatePassword(); // Generate the password
+    const newUser = new User({
+      username,
+      email,
+      password: newPassword, // Password will be hashed by the pre-save hook in User model
+      role,
+    });
+
+    await newUser.save();
+
+    // Send welcome email with credentials
+    const emailSubject = 'Welcome! Your new account has been created';
+    const emailText = `Hello ${username},
+
+An administrator has created an account for you.
+
+Username: ${username}
+Password: ${newPassword} // This is the system-generated password
+
+Please log in and consider changing your password.
+
+Thank you.`;
+
+    try {
+      await sendEmail(email, emailSubject, emailText);
+      console.log(`Welcome email queued for ${email} (mock)`);
+    } catch (emailError) {
+      console.error(`Failed to send welcome email to ${email}:`, emailError);
+      // Non-critical error: User is created, but email failed.
+      // Log this more formally or alert someone in a real app.
+    }
+
+    // Respond with success (excluding password)
+    const userToReturn = newUser.toObject();
+    delete userToReturn.password;
+
+    res.status(201).json({ message: 'User created successfully and welcome email sent.', user: userToReturn });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ message: 'Validation error', errors: error.errors });
+    }
+    res.status(500).json({ message: 'Server error while creating user' });
+  }
+});
+
+// PUT /api/admin/users/:userId/assign-package - Assign or remove a package for a user
+// @desc   Assign/Remove package for a user (admin only)
+// @access Private/Admin
+router.put('/:userId/assign-package', [authMiddleware, adminMiddleware], async (req, res) => {
+  const { userId } = req.params;
+  const { packageId } = req.body; // packageId can be null/empty to remove
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (packageId) {
+      // Assigning or changing a package
+      const packageToAssign = await Package.findById(packageId);
+      if (!packageToAssign) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      user.currentPackage = packageToAssign._id;
+      user.subscriptionDate = new Date();
+      // Potentially reset usage data if business logic requires
+      // user.simulatedDataUsed = 0;
+      // user.billingCycleStartDate = new Date();
+    } else {
+      // Removing a package
+      user.currentPackage = null;
+      user.subscriptionDate = null;
+      // user.simulatedDataUsed = 0; // Reset usage if needed
+    }
+
+    await user.save();
+
+    // Populate currentPackage before sending back for frontend convenience
+    const updatedUser = await User.findById(userId)
+      .select('-password')
+      .populate('currentPackage');
+
+    res.json({ message: 'Package assignment updated successfully', user: updatedUser });
+
+  } catch (error) {
+    console.error('Error assigning package to user:', error.message);
+    if (error.kind === 'ObjectId') { // Handle invalid ObjectId format for userId or packageId
+        return res.status(400).json({ message: 'Invalid ID format for user or package.' });
+    }
+    res.status(500).json({ message: 'Server error while assigning package' });
   }
 });
 
@@ -147,60 +273,6 @@ router.delete('/:id', [authMiddleware, adminMiddleware], async (req, res) => {
       return res.status(400).json({ message: 'Invalid User ID format' });
     }
     res.status(500).json({ message: 'Server error while deleting user' });
-  }
-});
-
-// PUT /api/admin/users/:userId/usage - Update a user's simulated usage data
-// @desc   Update user's simulated data usage and billing cycle start date (admin only)
-// @access Private/Admin
-router.put('/:userId/usage', [authMiddleware, adminMiddleware], async (req, res) => {
-  const { userId } = req.params;
-  const { simulatedDataUsed, billingCycleStartDate } = req.body;
-
-  const updateFields = {};
-
-  if (simulatedDataUsed !== undefined) {
-    const usage = parseFloat(simulatedDataUsed);
-    if (isNaN(usage) || usage < 0) {
-      return res.status(400).json({ message: 'Invalid simulatedDataUsed value. Must be a non-negative number.' });
-    }
-    updateFields.simulatedDataUsed = usage;
-  }
-
-  if (billingCycleStartDate !== undefined) {
-    const date = new Date(billingCycleStartDate);
-    if (isNaN(date.getTime())) {
-      return res.status(400).json({ message: 'Invalid billingCycleStartDate value. Must be a valid date.' });
-    }
-    updateFields.billingCycleStartDate = date;
-  }
-
-  if (Object.keys(updateFields).length === 0) {
-    return res.status(400).json({ message: 'No valid fields provided for update.' });
-  }
-
-  try {
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updateFields },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    res.json({ message: 'User usage data updated successfully.', user: updatedUser });
-
-  } catch (error) {
-    console.error('Error updating user usage data:', error.message);
-    if (error.name === 'ValidationError') { // Mongoose validation error
-      return res.status(400).json({ message: error.message });
-    }
-    if (error.kind === 'ObjectId') { // Handle invalid ObjectId format for userId
-        return res.status(400).json({ message: 'Invalid User ID format.' });
-    }
-    res.status(500).json({ message: 'Server error updating user usage data.' });
   }
 });
 

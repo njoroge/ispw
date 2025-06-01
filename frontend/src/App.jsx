@@ -14,6 +14,7 @@ import AdminPackageListPage from './pages/Admin/AdminPackageListPage';
 import AdminPackageFormPage from './pages/Admin/AdminPackageFormPage';
 import AdminUserListPage from './pages/Admin/AdminUserListPage'; // Import AdminUserListPage
 import AdminEditUserPage from './pages/Admin/AdminEditUserPage'; // Import AdminEditUserPage
+import AdminCreateUserPage from './pages/Admin/AdminCreateUserPage'; // Adjust path if needed
 import NotAuthorizedPage from './pages/NotAuthorizedPage';
 import SpeedTestPage from './pages/SpeedTestPage'; // Import SpeedTestPage
 import UserProfilePage from './pages/UserProfilePage'; // Import UserProfilePage
@@ -32,7 +33,9 @@ function App() {
       <nav style={{ padding: '1rem', background: '#f0f0f0', marginBottom: '1rem' }}>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', gap: '1rem' }}>
           <li><Link to="/">Home/Dashboard</Link></li>
-          <li><Link to="/packages">Packages</Link></li>
+          {!isAdmin && (
+            <li><Link to="/packages">Packages</Link></li>
+          )}
           {isAuthenticated ? (
             <>
               {isAdmin && (
@@ -75,6 +78,7 @@ function App() {
             <Route path="/admin/packages/new" element={<AdminPackageFormPage />} />
             <Route path="/admin/packages/edit/:id" element={<AdminPackageFormPage />} />
             <Route path="/admin/users" element={<AdminUserListPage />} />
+            <Route path="/admin/users/new" element={<AdminCreateUserPage />} />
             <Route path="/admin/users/edit/:id" element={<AdminEditUserPage />} />
           </Route>
           
