@@ -40,11 +40,11 @@ This system boasts a range of features designed to provide a realistic ISP manag
     *   **User Management (CRUD):**
         *   Admins can list all registered users.
         *   Admins can view details of specific users.
-        *   Admins can edit user information, including their role (e.g., promote to admin or demote to user).
+        *   Admins can **Create new users**. The system generates a secure password for the new user and sends it to their email address (currently mocked to log to console in development).
+        *   Admins can edit user information (including their role) and **assign, change, or remove ISP packages for the user.**
         *   Admins can delete users, with safeguards (e.g., preventing self-deletion or deletion of the last admin through certain routes).
-    *   **Simulated Internet Usage Management:**
-        *   Admins can set or update a user's `simulatedDataUsed` (in GB).
-        *   Admins can set or update a user's `billingCycleStartDate`.
+    *   **User Data Management Notes:**
+        *   The direct admin UI for setting a user's `simulatedDataUsed` and `billingCycleStartDate` via the user edit page has been removed to enhance data privacy on that specific view. These fields may still be part of the user model for other purposes.
 
 *   **Internet Speed Test:**
     *   An integrated page allowing authenticated users to test their internet connection speed using an embedded LibreSpeed instance.
@@ -173,8 +173,9 @@ To set up and run this project locally, you will need the following:
     *   Once logged in as an admin, navigation links for "Admin Dashboard", "Manage Packages (Admin)", and "Manage Users" will appear in the main navigation bar.
 *   **Admin Capabilities:**
     *   **Package Management:** Create, view, update, and delete ISP packages.
-    *   **User Management:** List users, view user details, change user roles (e.g., user to admin), update user information, and delete users.
-    *   **Simulated Usage Data:** Set/update simulated internet data usage and billing cycle start dates for users via the user edit page.
+    *   **User Management:** List users, view user details, **create new users (with system-generated passwords and email notification)**, change user roles, update user information, **assign/manage user package subscriptions directly on the user edit page,** and delete users.
+    *   **Simulated Usage Data:** The admin UI for directly setting/updating these values on the user edit page has been removed. (The API endpoint may still exist for other backend processes if needed).
+    *   **Streamlined Navigation:** The general 'Packages' page (where users subscribe themselves) is hidden from admins to focus their workflow on direct package assignment via user editing and package definition management.
 
 ## M-Pesa STK Push Setup (Detailed)
 
@@ -251,9 +252,11 @@ This section provides a summary of the main backend API route groups. "(user pro
 *   **Admin User Management (`/api/admin/users`)**
     *   `GET /`: List all users (admin protected).
     *   `GET /:id`: Get a specific user's details by ID (admin protected).
+    *   `POST /create: Create a new user (admin protected; system generates password and sends email).`
     *   `PUT /:id`: Update a user's details (e.g., username, email, role) by ID (admin protected).
     *   `DELETE /:id`: Delete a user by ID (admin protected).
-    *   `PUT /:userId/usage`: Update a user's simulated usage data (`simulatedDataUsed`, `billingCycleStartDate`) by user ID (admin protected).
+    *   `PUT /:userId/assign-package: Assign/update a user's package subscription (admin protected).`
+    *   `PUT /:userId/usage`: Update a user's simulated usage data (`simulatedDataUsed`, `billingCycleStartDate`) by user ID (admin protected). *Note: The primary frontend UI for admins to modify this on the user edit page has been removed.*
 
 *   **Payments (`/api/payments`)**
     *   `POST /initiate-stk`: Initiate an M-Pesa STK push payment for the logged-in user (user protected).
