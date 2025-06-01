@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User'); // Adjust path if User model is elsewhere
 const Package = require('../models/Package'); // Adjust path if necessary
+const sendEmail = require('../utils/sendEmail'); // Import the mock email utility
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
@@ -21,6 +22,81 @@ router.get('/', [authMiddleware, adminMiddleware], async (req, res) => {
   } catch (error) {
     console.error('Error fetching users:', error.message);
     res.status(500).json({ message: 'Server error while fetching users' });
+  }
+});
+
+// POST /api/admin/users/create - Create a new user
+// @desc   Create a new user (admin only)
+// @access Private/Admin
+router.post('/create', [authMiddleware, adminMiddleware], async (req, res) => {
+  const { username, email, password, role } = req.body;
+
+  // Basic validation
+  if (!username || !email || !password || !role) {
+    return res.status(400).json({ message: 'Please provide username, email, password, and role' });
+  }
+  if (password.length < 6) {
+     return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+  }
+  if (!['user', 'admin'].includes(role)) {
+     return res.status(400).json({ message: 'Invalid role specified' });
+  }
+
+  try {
+    // Check for existing user by email or username
+    let existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+    existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this username already exists' });
+    }
+
+    // Create new user
+    const newUser = new User({
+      username,
+      email,
+      password, // Password will be hashed by the pre-save hook in User model
+      role,
+    });
+
+    await newUser.save();
+
+    // Send welcome email with credentials
+    const emailSubject = 'Welcome! Your new account has been created';
+    const emailText = `Hello ${username},
+
+An administrator has created an account for you.
+
+Username: ${username}
+Password: ${password} // This is the plain password provided by admin
+
+Please log in and consider changing your password.
+
+Thank you.`;
+
+    try {
+      await sendEmail(email, emailSubject, emailText);
+      console.log(`Welcome email queued for ${email} (mock)`);
+    } catch (emailError) {
+      console.error(`Failed to send welcome email to ${email}:`, emailError);
+      // Non-critical error: User is created, but email failed.
+      // Log this more formally or alert someone in a real app.
+    }
+
+    // Respond with success (excluding password)
+    const userToReturn = newUser.toObject();
+    delete userToReturn.password;
+
+    res.status(201).json({ message: 'User created successfully and welcome email sent.', user: userToReturn });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ message: 'Validation error', errors: error.errors });
+    }
+    res.status(500).json({ message: 'Server error while creating user' });
   }
 });
 
