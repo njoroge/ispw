@@ -14,12 +14,6 @@ const AdminEditUserPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false); // For main profile form
   const [error, setError] = useState(null); // For main profile form and page load
 
-  // State for Usage Data Form
-  const [usageFormData, setUsageFormData] = useState({ simulatedDataUsed: '', billingCycleStartDate: '' });
-  const [isSubmittingUsage, setIsSubmittingUsage] = useState(false);
-  const [usageError, setUsageError] = useState(null);
-  const [usageSuccessMessage, setUsageSuccessMessage] = useState('');
-
   useEffect(() => {
     if (!token) {
       setError("Authentication token not found. Please log in.");
@@ -48,60 +42,6 @@ const AdminEditUserPage = () => {
       setIsLoadingPage(false);
     }
   }, [userIdToEdit, token]);
-
-  // Effect to initialize/sync usageFormData with userToEdit data
-  useEffect(() => {
-    if (userToEdit) {
-      setUsageFormData({
-        simulatedDataUsed: userToEdit.simulatedDataUsed !== undefined ? userToEdit.simulatedDataUsed : 0,
-        billingCycleStartDate: userToEdit.billingCycleStartDate 
-          ? new Date(userToEdit.billingCycleStartDate).toISOString().split('T')[0] 
-          : ''
-      });
-    }
-  }, [userToEdit]);
-
-  const handleUsageInputChange = (e) => {
-    setUsageFormData({ ...usageFormData, [e.target.name]: e.target.value });
-  };
-
-  const handleUsageUpdate = async (e) => {
-    e.preventDefault();
-    if (!token) {
-      setUsageError("Authentication token not found. Please log in again.");
-      return;
-    }
-    setIsSubmittingUsage(true);
-    setUsageError(null);
-    setUsageSuccessMessage('');
-
-    const payload = {
-      simulatedDataUsed: parseFloat(usageFormData.simulatedDataUsed),
-      // Only send billingCycleStartDate if it's not empty, otherwise backend might try to parse an empty string
-      ...(usageFormData.billingCycleStartDate && { billingCycleStartDate: usageFormData.billingCycleStartDate })
-    };
-    
-    // Validate simulatedDataUsed again after parseFloat
-    if (isNaN(payload.simulatedDataUsed) || payload.simulatedDataUsed < 0) {
-        setUsageError("Simulated data used must be a non-negative number.");
-        setIsSubmittingUsage(false);
-        return;
-    }
-
-    try {
-      const response = await axios.put(`http://localhost:5000/api/admin/users/${userIdToEdit}/usage`, payload, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      setUsageSuccessMessage('Usage data updated successfully!');
-      setUserToEdit(response.data.user); // Update the main user state on the page
-      // The useEffect for usageFormData will re-sync it based on updated userToEdit
-    } catch (err) {
-      setUsageError(err.response?.data?.message || 'Failed to update usage data.');
-      console.error("Usage update error:", err);
-    } finally {
-      setIsSubmittingUsage(false);
-    }
-  };
 
   const handleUserUpdate = async (formData) => {
     if (!token) {
@@ -159,39 +99,6 @@ const AdminEditUserPage = () => {
         isSubmitting={isSubmitting}
         isCurrentUser={loggedInUser?._id === userToEdit?._id}
       />
-
-      <hr style={{ margin: '30px 0' }} />
-
-      <h3>Manage Usage Data</h3>
-      {usageSuccessMessage && <p style={{ color: 'green' }}>{usageSuccessMessage}</p>}
-      {usageError && <p style={{ color: 'red' }}>{usageError}</p>}
-      <form onSubmit={handleUsageUpdate}>
-        <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="simulatedDataUsed" style={{ marginRight: '5px' }}>Simulated Data Used (GB):</label>
-          <input
-            type="number"
-            id="simulatedDataUsed"
-            name="simulatedDataUsed"
-            value={usageFormData.simulatedDataUsed}
-            onChange={handleUsageInputChange}
-            step="0.1"
-            min="0"
-          />
-        </div>
-        <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="billingCycleStartDate" style={{ marginRight: '5px' }}>Billing Cycle Start Date:</label>
-          <input
-            type="date"
-            id="billingCycleStartDate"
-            name="billingCycleStartDate"
-            value={usageFormData.billingCycleStartDate}
-            onChange={handleUsageInputChange}
-          />
-        </div>
-        <button type="submit" disabled={isSubmittingUsage}>
-          {isSubmittingUsage ? 'Updating Usage...' : 'Update Usage Data'}
-        </button>
-      </form>
     </div>
   );
 };
