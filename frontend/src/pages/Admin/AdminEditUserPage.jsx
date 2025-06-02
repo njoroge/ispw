@@ -194,6 +194,8 @@ const AdminEditUserPage = () => {
       return <p>User not found or could not be loaded.</p>
   }
 
+  const isAdminEditingSelf = loggedInUser?._id === userToEdit?._id;
+
   return (
     <div>
       <h2>Edit User: {userToEdit.username}</h2>
@@ -211,10 +213,16 @@ const AdminEditUserPage = () => {
       {packageManagementError && <p style={{ color: 'red' }}>{packageManagementError}</p>}
       {packageManagementSuccess && <p style={{ color: 'green' }}>{packageManagementSuccess}</p>}
 
+      {isAdminEditingSelf && (
+        <p style={{ fontStyle: 'italic', color: '#555', marginTop: '10px', marginBottom: '10px' }}>
+          Package assignment for your own account is not managed through this interface.
+        </p>
+      )}
+
       {isLoadingPackages ? (
         <p>Loading packages...</p>
       ) : (
-        <>
+        <div style={isAdminEditingSelf ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
           <div>
             <p><strong>Current Package:</strong> {userToEdit.currentPackage ? userToEdit.currentPackage.name : 'None'}</p>
             <p><strong>Subscription Date:</strong> {formatDate(userToEdit.subscriptionDate)}</p>
@@ -225,7 +233,7 @@ const AdminEditUserPage = () => {
               id="packageSelect"
               value={selectedPackageId}
               onChange={(e) => setSelectedPackageId(e.target.value)}
-              disabled={isLoadingPackages || isAssigningPackage}
+              disabled={isAdminEditingSelf || isLoadingPackages || isAssigningPackage}
               style={{ marginRight: '10px', padding: '5px' }}
             >
               <option value="">-- Select a Package --</option>
@@ -235,20 +243,20 @@ const AdminEditUserPage = () => {
             </select>
             <button
               onClick={handleAssignPackage}
-              disabled={!selectedPackageId || isAssigningPackage || isLoadingPackages}
+              disabled={isAdminEditingSelf || !selectedPackageId || isAssigningPackage || isLoadingPackages}
               style={{ padding: '5px 10px', marginRight: '5px' }}
             >
               {isAssigningPackage ? 'Assigning...' : 'Assign Package'}
             </button>
             <button
               onClick={handleRemovePackage}
-              disabled={!userToEdit.currentPackage || isAssigningPackage || isLoadingPackages} // Assuming isAssigningPackage can be used for remove operation too
+              disabled={isAdminEditingSelf || !userToEdit.currentPackage || isAssigningPackage || isLoadingPackages}
               style={{ padding: '5px 10px', backgroundColor: 'red', color: 'white' }}
             >
               {isAssigningPackage ? 'Removing...' : 'Remove Package'}
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
